@@ -2,7 +2,7 @@
  * Author: Yin Qisen <yinqisen@gmail.com>
  * Github: https://github.com/uappkit
  *
- * Copyright(c) 2022 - 2024, uapp.dev
+ * Copyright(c) 2022 - 2025, uapp.dev
  */
 
 const _ = require('lodash')
@@ -250,7 +250,7 @@ module.exports = function (inputArgs) {
   */
 
   if ($G.projectType === 'unknown') {
-    console.log('无法确定项目类型，请在支持的项目中运行命令')
+    console.log('无法确定项目类型，请在项目的根目录下运行命令')
     console.log('目前支持的项目类型有: webapp, android, ios')
     return
   }
@@ -609,6 +609,7 @@ function updateAndroidMetaData() {
   let baseGradleFile = path.join($G.appDir, 'app/build.gradle')
   let content = fs.readFileSync(baseGradleFile, 'utf8')
 
+  content = content.replace(/(namespace\s+")(.*)(")/, '$1' + $G.manifest.uapp.package + '$3')
   content = content.replace(/(applicationId\s+")(.*)(")/, '$1' + $G.manifest.uapp.package + '$3')
   content = content.replace(/(app_name[',\s]+")(.*)(")/, '$1' + $G.manifest.uapp.name + '$3')
   content = content.replace(/(versionCode\s+)(.*)/, '$1' + $G.manifest.uapp.versionCode)
