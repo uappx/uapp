@@ -12,6 +12,7 @@ uapp 通用命令🔥
   - webapp 工程下编译命令
     uapp run dev:h5
     uapp run build:mp-weixin --open # 参数 open 表示使用微信开发者工具打开
+    uapp run build:app -r uapp.wgt  # 打包为 uapp.wgt
 
   - app 工程下命令
     uapp run build:app                # 编译并发布自定义基座到 HBuilderX 下

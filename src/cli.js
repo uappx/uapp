@@ -10,6 +10,7 @@ const nopt = require('nopt')
 const updateNotifier = require('update-notifier')
 const fs = require('fs')
 const ora = require('ora')
+const yazl = require('yazl')
 
 const path = require('path')
 const { execSync, spawnSync, spawn } = require('child_process')
@@ -357,7 +358,7 @@ module.exports = function (inputArgs) {
       }
 
       if (args.webapp) {
-        await buildWebApp(args.argv.remain[1]).catch()
+        await buildWebApp(args.argv.remain[1])
       }
 
       prepareCommand()
@@ -389,7 +390,7 @@ module.exports = function (inputArgs) {
         return console.log('命令无效，webapp 仅支持 uapp run build:* / dev:*, 支持自定义扩展')
       }
 
-      return buildWebApp(args.argv.remain[1]).then().catch()
+      return buildWebApp(args.argv.remain[1])
     }
 
     if (!args.argv.remain[1] || !args.argv.remain[1].startsWith('build:app')) {
@@ -399,7 +400,7 @@ module.exports = function (inputArgs) {
     return (async () => {
       if (args.prepare) {
         if (args.webapp) {
-          await buildWebApp(args.argv.remain[1]).catch()
+          await buildWebApp(args.argv.remain[1])
         }
 
         prepareCommand()
@@ -959,7 +960,16 @@ function buildWebApp(buildArg) {
         return reject()
       }
 
-      resolve()
+      if (['build', 'app'].every(v => $G.args.argv.remain[1].includes(v)) && path.extname($G.args.release) === '.wgt') {
+        let wgtFile = path.join($G.webAppDir, 'unpackage/release/' + path.basename($G.args.release))
+        zipDirectory(buildOutDir, wgtFile).then(() => {
+          console.log('\n打包成功, wgt 文件路径: ')
+          console.log(wgtFile)
+          resolve()
+        }).catch(reject)
+      } else {
+        resolve()
+      }
     })
   })
 }
@@ -982,6 +992,32 @@ function getBuildOut() {
   }
 
   return path.join($G.webAppDir, relativeDir)
+}
+
+function zipDirectory(sourceDir, outPath) {
+  return new Promise((resolve, reject) => {
+    const zipfile = new yazl.ZipFile()
+
+    function addDir(dir, base) {
+      const files = fs.readdirSync(dir)
+      for (const file of files) {
+        const fullPath = path.join(dir, file)
+        const relativePath = path.relative(base, fullPath)
+        const stat = fs.statSync(fullPath)
+
+        if (stat.isDirectory()) {
+          addDir(fullPath, base)
+        } else {
+          zipfile.addFile(fullPath, relativePath, { compress: false })
+        }
+      }
+    }
+
+    addDir(sourceDir, sourceDir)
+    const output = fs.createWriteStream(outPath)
+    zipfile.outputStream.pipe(output).on('close', () => { resolve() }).on('error', reject)
+    zipfile.end()
+  })
 }
 
 function runHBuilderXCli(args) {

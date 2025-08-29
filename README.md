@@ -213,6 +213,9 @@ uapp prepare build:app
 # 编译APP安装包, 并发布自定义基座到 HBuilderX 下
 uapp run build:app
 
+# 打包为 uapp.wgt, 名字可改
+uapp run build:app -r uapp.wgt
+
 # vue2 要使用 app-plus，与 uniapp 一致
 uapp run build:app-plus
 

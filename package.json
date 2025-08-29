@@ -1,6 +1,6 @@
 {
   "name": "uapp",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "description": "uapp源自跨平台开发的最佳实践。uapp通过集成 uni-app, electron, tauri，让开发者仅需维护一套代码，就能横扫所有平台。用uapp可以无限制重构一切软件。+作者vx: 28451307",
   "main": "bin/uapp",
   "bin": {
@@ -28,7 +28,8 @@
     "lodash": ">=4.17.21",
     "nopt": "^5.0.0",
     "ora": "^5.4.1",
-    "update-notifier": "^5.1.0"
+    "update-notifier": "^5.1.0",
+    "yazl": "^3.3.1"
   },
   "engines": {
     "node": ">=18"
