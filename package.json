@@ -1,6 +1,6 @@
 {
   "name": "uapp",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "uapp源自跨平台开发的最佳实践。uapp通过集成 uni-app, electron, tauri，让开发者仅需维护一套代码，就能横扫所有平台。用uapp可以无限制重构一切软件。+作者vx: 28451307",
   "main": "bin/uapp",
   "bin": {
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uappkit/uapp.git"
+    "url": "git+https://github.com/uappx/uapp.git"
   },
   "keywords": [
     "uapp",
@@ -35,9 +35,9 @@
     "node": ">=18"
   },
   "bugs": {
-    "url": "https://github.com/uappkit/uapp/issues"
+    "url": "https://github.com/uappx/uapp/issues"
   },
-  "homepage": "https://github.com/uappkit/uapp#readme",
+  "homepage": "https://github.com/uappx/uapp#readme",
   "directories": {
     "doc": "doc"
   },
