@@ -390,7 +390,7 @@ module.exports = function (inputArgs) {
 
     if ($G.projectType === 'webapp') {
       if ($G.args.release && $G.args.release.split('.').pop() !== 'wgt') {
-        console.log(chalk.yellow(`webapp 工程下忽略 --releas 参数 (${$G.args.release})`))
+        console.log(chalk.yellow(`webapp 工程下忽略 --release 参数 (${$G.args.release})`))
       }
 
       let [a, b] = args.argv.remain[1].split(':')
