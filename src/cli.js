@@ -384,7 +384,15 @@ module.exports = function (inputArgs) {
   if (cmd === 'run') {
     console.log('当前工程类型为 ' + chalk.yellow($G.projectType + ', vue' + $G.manifest.vueVersion))
 
+    if ($G.projectType !== 'webapp' && $G.args.release?.split('.').pop() === 'wgt') {
+      return console.log('命令无效，仅支持在 webapp 工程下打包为 wgt格式')
+    }
+
     if ($G.projectType === 'webapp') {
+      if ($G.args.release && $G.args.release.split('.').pop() !== 'wgt') {
+        console.log(chalk.yellow(`webapp 工程下忽略 --releas 参数 (${$G.args.release})`))
+      }
+
       let [a, b] = args.argv.remain[1].split(':')
       if (!['build', 'dev'].includes(a) || !b) {
         return console.log('命令无效，webapp 仅支持 uapp run build:* / dev:*, 支持自定义扩展')
@@ -960,7 +968,7 @@ function buildWebApp(buildArg) {
         return reject()
       }
 
-      if (['build', 'app'].every(v => $G.args.argv.remain[1].includes(v)) && path.extname($G.args.release) === '.wgt') {
+      if (['build', 'app'].every(v => $G.args.argv.remain[1].includes(v)) && $G.args.release?.split('.').pop() === 'wgt') {
         let wgtFile = path.join($G.webAppDir, 'unpackage/release/' + path.basename($G.args.release))
         zipDirectory(buildOutDir, wgtFile).then(() => {
           console.log('\n打包成功, wgt 文件路径: ')
