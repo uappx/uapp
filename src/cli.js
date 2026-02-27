@@ -618,12 +618,12 @@ function updateAndroidMetaData() {
   let baseGradleFile = path.join($G.appDir, 'app/build.gradle')
   let content = fs.readFileSync(baseGradleFile, 'utf8')
 
-  content = content.replace(/(namespace\s+")(.*)(")/, '$1' + $G.manifest.uapp.package + '$3')
-  content = content.replace(/(applicationId\s+")(.*)(")/, '$1' + $G.manifest.uapp.package + '$3')
-  content = content.replace(/(app_name[',\s]+")(.*)(")/, '$1' + $G.manifest.uapp.name + '$3')
-  content = content.replace(/(versionCode\s+)(.*)/, '$1' + $G.manifest.uapp.versionCode)
-  content = content.replace(/(versionName\s+")(.*)(")/, '$1' + $G.manifest.uapp.versionName + '$3')
-  content = content.replace(/("DCLOUD_APPKEY"\s+:\s+")(.*)(",)/, '$1' + $G.manifest.uapp.appkey + '$3')
+  content = content.replace(/(namespace\s*(?:=\s*)?")(.*)(")/, '$1' + $G.manifest.uapp.package + '$3')
+  content = content.replace(/(applicationId\s*(?:=\s*)?")(.*)(")/, '$1' + $G.manifest.uapp.package + '$3')
+  content = content.replace(/(app_name'\s*,\s*")(.*)(")/, '$1' + $G.manifest.uapp.name + '$3')
+  content = content.replace(/(versionCode\s*(?:=\s*)?)(\d+)/, '$1' + $G.manifest.uapp.versionCode)
+  content = content.replace(/(versionName\s*(?:=\s*)?")(.*)(")/, '$1' + $G.manifest.uapp.versionName + '$3')
+  content = content.replace(/("DCLOUD_APPKEY"\s*:\s*")(.*)(",)/, '$1' + $G.manifest.uapp.appkey + '$3')
 
   content = content.replace(
     /("WX_APPID"\s+:\s+")(.*)(",)/,
