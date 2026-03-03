@@ -905,13 +905,15 @@ function buildWebApp(buildArg) {
   let spawnOpts = { stdio: 'pipe' }
   let buildScript
 
+  let baseNodePaths = []
   if (Number($G.manifest.vueVersion) === 3) {
     vue = 'vue3'
     buildScript = path.join(hbxDir, 'plugins/uniapp-cli-vite/node_modules/@dcloudio/vite-plugin-uni/bin/uni.js')
+    baseNodePaths.push(path.join(hbxDir, 'plugins/uniapp-cli-vite/node_modules'))
     spawnArgs = [buildScript, flag, '-p', buildArg.split(':')[1]]
   } else {
     buildScript = path.join(hbxDir, 'plugins/uniapp-cli/bin/uniapp-cli.js')
-    process.env.NODE_PATH = path.join(hbxDir, 'plugins/uniapp-cli/node_modules')
+    baseNodePaths.push(path.join(hbxDir, 'plugins/uniapp-cli/node_modules'))
     spawnOpts.cwd = process.env.VUE_CLI_CONTEXT = process.env.UNI_CLI_CONTEXT = path.join(hbxDir, 'plugins/uniapp-cli')
 
     const pkg = require(path.join($G.webAppDir, 'package.json'))
@@ -924,6 +926,15 @@ function buildWebApp(buildArg) {
 
     spawnArgs = [buildScript]
   }
+
+  const preProcessors = ['compile-dart-sass', 'compile-less']
+  preProcessors.forEach(p => {
+    const pPath = path.join(hbxDir, 'plugins', p, 'node_modules')
+    if (fs.existsSync(pPath)) {
+      baseNodePaths.push(pPath)
+    }
+  })
+  process.env.NODE_PATH = baseNodePaths.join(path.delimiter)
 
   if (!fs.existsSync(buildScript)) {
     console.log(chalk.yellow(`HBuilderX 需要安装插件 => uni-app (${vue}) 编译器`))
