@@ -16,7 +16,7 @@ const isEscaped = (jsonString, quotePosition) => {
   return Boolean(backslashCount % 2)
 }
 
-module.exports = function stripJsonComments(jsonString, { whitespace = true, trailingCommas = false } = {}) {
+export default function stripJsonComments(jsonString, { whitespace = true, trailingCommas = false } = {}) {
   if (typeof jsonString !== 'string') {
     throw new TypeError(`Expected argument \`jsonString\` to be a \`string\`, got \`${typeof jsonString}\``)
   }
@@ -58,7 +58,6 @@ module.exports = function stripJsonComments(jsonString, { whitespace = true, tra
       isInsideComment = false
       buffer += strip(jsonString, offset, index)
       offset = index
-      continue
     } else if (isInsideComment === singleComment && currentCharacter === '\n') {
       // Exit single-line comment via \n
       isInsideComment = false
@@ -70,14 +69,12 @@ module.exports = function stripJsonComments(jsonString, { whitespace = true, tra
       offset = index
       isInsideComment = multiComment
       index++
-      continue
     } else if (isInsideComment === multiComment && currentCharacter + nextCharacter === '*/') {
       // Exit multiline comment
       index++
       isInsideComment = false
       buffer += strip(jsonString, offset, index + 1)
       offset = index + 1
-      continue
     } else if (trailingCommas && !isInsideComment) {
       if (commaIndex !== -1) {
         if (currentCharacter === '}' || currentCharacter === ']') {

@@ -2,6 +2,7 @@
   "name": "uapp",
   "version": "3.0.13",
   "description": "uapp源自跨平台开发的最佳实践。uapp通过集成 uni-app, electron, tauri，让开发者仅需维护一套代码，就能横扫所有平台。用uapp可以无限制重构一切软件。+作者vx: 28451307",
+  "type": "module",
   "main": "bin/uapp",
   "bin": {
     "uapp": "bin/uapp"
@@ -20,15 +21,15 @@
     "uniapp"
   ],
   "dependencies": {
-    "@uappx/tiged": "^2.12.6",
-    "chalk": "^0.5.1",
+    "@uappx/tiged": "^2.12.8",
+    "chalk": "^5.6.2",
     "chokidar": "^3.5.3",
-    "fs-extra": "^10.0.1",
+    "fs-extra": "^11.3.4",
     "jsonwebtoken": ">=9.0.0",
     "lodash": ">=4.17.23",
     "nopt": "^5.0.0",
-    "ora": "^5.4.1",
-    "update-notifier": "^5.1.0",
+    "ora": "^8.2.0",
+    "update-notifier": "^7.3.1",
     "yazl": "^3.3.1"
   },
   "engines": {

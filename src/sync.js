@@ -1,10 +1,8 @@
-'use strict'
-
-const _ = require('lodash')
-const fs = require('fs-extra')
-const path = require('path')
-const chalk = require('chalk')
-const chokidar = require('chokidar')
+import _ from 'lodash'
+import fs from 'fs-extra'
+import path from 'path'
+import chalk from 'chalk'
+import chokidar from 'chokidar'
 
 const notifyPriority = {
   error: 'high',
@@ -15,7 +13,7 @@ const notifyPriority = {
   'no-delete': 'low'
 }
 
-module.exports = function (source, target, opts) {
+export default function (source, target, opts) {
   syncFiles(source, target, opts, function (event, data) {
     switch (event) {
       case 'error':

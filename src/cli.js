@@ -2,24 +2,31 @@
  * Author: Yin Qisen <yinqisen@gmail.com>
  * Github: https://github.com/uappx
  *
- * Copyright(c) 2022 - 2025, uapp.dev
+ * Copyright(c) 2022 - 2026, uapp.dev
  */
 
-const _ = require('lodash')
-const nopt = require('nopt')
-const updateNotifier = require('update-notifier')
-const fs = require('fs')
-const ora = require('ora')
-const yazl = require('yazl')
+import _ from 'lodash'
+import nopt from 'nopt'
+import updateNotifier from 'update-notifier'
+import fs from 'fs'
+import ora from 'ora'
+import yazl from 'yazl'
+import os from 'os'
+import path from 'path'
+import { execSync, spawnSync, spawn } from 'child_process'
+import tiged from '@uappx/tiged'
+import chalk from 'chalk'
+import sync from './sync.js'
+import stripJsonComments from './stripJsonComments.js'
+import fsExtra from 'fs-extra'
+const { emptyDirSync, removeSync, pathExistsSync } = fsExtra
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import readline from 'readline/promises'
 
-const path = require('path')
-const { execSync, spawnSync, spawn } = require('child_process')
-const tiged = require('@uappx/tiged')
-const chalk = require('chalk')
+const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pkg = require('../package.json')
-const sync = require('./sync')
-const stripJsonComments = require('./stripJsonComments')
-const { emptyDirSync, removeSync, pathExistsSync } = require('fs-extra')
 
 const knownOpts = {
   version: Boolean,
@@ -45,7 +52,7 @@ const shortHands = {
 let $G = {
   args: {},
   appDir: process.cwd(),
-  sdkHomeDir: path.join(require('os').homedir(), '.uappsdk'),
+  sdkHomeDir: path.join(os.homedir(), '.uappsdk'),
   localLinkManifest: path.join(process.cwd(), 'manifest.json'),
   manifest: {},
   webAppDir: '',
@@ -53,7 +60,7 @@ let $G = {
   config: {}
 }
 
-module.exports = function (inputArgs) {
+export default function (inputArgs) {
   checkForUpdates()
   let args = $G.args = nopt(knownOpts, shortHands, inputArgs)
 
@@ -82,11 +89,8 @@ module.exports = function (inputArgs) {
   }
 
   if (cmd === 'privacy') {
-    const readline = require('readline/promises')
-    const { stdin: input, stdout: output } = require('process');
-
-    (async () => {
-      const rl = readline.createInterface({ input, output })
+    ;(async () => {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
       try {
         console.log(chalk.yellow('提示: uapp 不承诺协议内容的专业合法性，如您对此有要求，请咨询专业律师起草，并自行替换'))
         const companyFullName = await rl.question('输入公司全名: ')
@@ -104,7 +108,7 @@ module.exports = function (inputArgs) {
           privacyTplFile = path.resolve(__dirname, '../uappsdk/templates/privacy/privacy.tpl.md')
         }
 
-        [regTplFile, privacyTplFile].map(file => {
+        ;[regTplFile, privacyTplFile].map(file => {
           let content = fs.readFileSync(file, 'utf8')
           content = content.replace(/\$COMPANY_FULL\$/g, companyFullName)
           content = content.replace(/\$COMPANY_SHORT\$/g, companyShortName)
@@ -139,10 +143,10 @@ module.exports = function (inputArgs) {
     let defaultPath = ''
 
     if (process.platform === 'darwin') {
-      settingFile = path.join(require('os').homedir(), 'Library/Application Support/HBuilder X/user/settings.json')
+      settingFile = path.join(os.homedir(), 'Library/Application Support/HBuilder X/user/settings.json')
       defaultPath = '/Applications/wechatwebdevtools.app'
     } else if (process.platform === 'win32') {
-      settingFile = path.join(require('os').homedir(), 'AppData/Roaming/HBuilder X/user/settings.json')
+      settingFile = path.join(os.homedir(), 'AppData/Roaming/HBuilder X/user/settings.json')
       defaultPath = 'C:\\Program Files (x86)\\Tencent\\微信web开发者工具'
     }
 
@@ -328,7 +332,7 @@ module.exports = function (inputArgs) {
     printManifestInfo()
 
     if (($G.projectType === 'ios' && !args.argv.remain[1]) || args.argv.remain[1] === 'jwt') {
-      printJWTToken()
+      printJWTToken().then()
       return
     }
 
@@ -567,7 +571,7 @@ function loadManifest() {
   $G.manifest.uapp.appkey = $G.manifest.uapp[`${$G.projectType}.appkey`]
 
   // 缺失的参数，默认使用模版里的
-  $G.manifest = _.merge(require($G.sdkHomeDir + '/templates/manifest.json'), $G.manifest)
+  $G.manifest = _.merge(require(path.join($G.sdkHomeDir, '/templates/manifest.json')), $G.manifest)
 }
 
 function prepareCommand() {
@@ -800,10 +804,11 @@ function printManifestInfo() {
 }
 
 // generate jwt token for apple oauth login
-function printJWTToken() {
+async function printJWTToken() {
   console.log('------ JWT Token ------')
   try {
-    let config = require(path.join($G.appDir, 'jwt/config.json'))
+    const configPath = path.join($G.appDir, 'jwt/config.json')
+    let config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
 
     if (!config.team_id) {
       let content = fs.readFileSync(path.join($G.appDir, 'config/custom.yml'), 'utf8')
@@ -826,8 +831,8 @@ function printJWTToken() {
       sub: config.client_id
     }
 
-    const jwt = require('jsonwebtoken')
-    let token = jwt.sign(claims, privateKey, { algorithm: 'ES256', header: headers })
+    const jwt = await import('jsonwebtoken')
+    let token = jwt.default.sign(claims, privateKey, { algorithm: 'ES256', header: headers })
     console.log(token)
   } catch (error) {
     console.log(error.message + '\n')
@@ -917,8 +922,7 @@ function buildWebApp(buildArg) {
     spawnArgs = [buildScript]
   }
 
-  const pkg = require(path.join($G.webAppDir, 'package.json'))
-  process.env.UNI_PLATFORM = pkg?.['uni-app']?.['scripts']?.[buildName]?.['env']?.UNI_PLATFORM ?? buildName
+  process.env.UNI_PLATFORM = require(path.join($G.webAppDir, 'package.json'))?.['uni-app']?.['scripts']?.[buildName]?.['env']?.UNI_PLATFORM ?? buildName
 
   if (!fs.existsSync(buildScript)) {
     console.log(chalk.yellow(`HBuilderX 需要安装插件 => uni-app (${vue}) 编译器`))
