@@ -1,6 +1,6 @@
 {
   "name": "uapp",
-  "version": "3.0.14",
+  "version": "3.0.15",
   "description": "uapp源自跨平台开发的最佳实践。uapp通过集成 uni-app, electron, tauri，让开发者仅需维护一套代码，就能横扫所有平台。用uapp可以无限制重构一切软件。+作者vx: 28451307",
   "type": "module",
   "main": "bin/uapp",
@@ -21,7 +21,7 @@
     "uniapp"
   ],
   "dependencies": {
-    "@uappx/tiged": "^2.12.8",
+    "@uappx/tiged": "^2.12.11",
     "chalk": "^5.6.2",
     "chokidar": "^3.5.3",
     "fs-extra": "^11.3.4",
