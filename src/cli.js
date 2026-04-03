@@ -506,20 +506,6 @@ function checkForUpdates() {
   }
 }
 
-function getFiles(dir, files_) {
-  files_ = files_ || []
-  const files = fs.readdirSync(dir)
-  for (let i in files) {
-    const name = path.join(dir, files[i])
-    if (fs.statSync(name).isDirectory()) {
-      getFiles(name, files_)
-    } else {
-      files_.push(name)
-    }
-  }
-  return files_
-}
-
 function checkManifest() {
   if (!fs.existsSync($G.localLinkManifest)) {
     console.log('请先执行 `uapp manifest path/to/manifest.json` 指定 manifest.json 文件')
