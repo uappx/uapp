@@ -16,8 +16,6 @@ uapp 通用命令🔥
 
   - 使用 HBuilderX 内置 Node/Jest 自动化测试
     uapp run test:web-chrome
-    uapp run test:web-firefox
-    uapp run test:web-safari
     uapp run test:mp-weixin
     uapp run test:app-android
     uapp run test:app-ios-simulator
@@ -30,9 +28,12 @@ uapp 通用命令🔥
     uapp run build:app -r aab         # android 下打包为 aab 的格式
     uapp run build:app-plus -r apk    # 注意：vue2 要用 :app-plus
 
-  - 配置 HBuilderX 和 微信安装环境
-    uapp config hbx.dir "C:\Program Files (x86)\HBuilderX"
-    uapp config wx.dir "C:\Program Files (x86)\Tencent\微信web开发者工具"
+  - 配置 HBuilderX, node 和 微信安装环境
+    uapp config set hbx.dir "C:\Program Files (x86)\HBuilderX"
+    uapp config set wx.dir "C:\Program Files (x86)\Tencent\微信web开发者工具"
+    uapp config get hbx.dir          # 读取已保存的值，未配置时返回非零退出码
+    uapp config list                 # JSON 格式列出已保存配置；也可直接 uapp config
+    uapp config delete hbx.dir       # 删除显式配置，恢复运行时默认探测
 
   - 直接用微信开发者工具内置的 cli
     uapp wx help

@@ -17,6 +17,8 @@ import { execSync, spawnSync, spawn } from 'child_process'
 import tiged from '@uappx/tiged'
 import chalk from 'chalk'
 import sync from './sync.js'
+import { hasIOSPodConfig, updateIOSPodConfig, buildIOSWithPods } from './ios-pods.js'
+import { readConfig, configCommand } from './config.js'
 import stripJsonComments from './stripJsonComments.js'
 import fsExtra from 'fs-extra'
 const { emptyDirSync, removeSync, pathExistsSync } = fsExtra
@@ -135,9 +137,10 @@ export default function (inputArgs) {
   }
 
   let configFile = path.join($G.sdkHomeDir, 'config.json')
-  if (fs.existsSync(configFile)) {
-    $G.config = JSON.parse(fs.readFileSync(configFile, 'utf8'))
+  if (cmd === 'config') {
+    return configCommand(args.argv.original.slice(args.argv.original.indexOf(cmd) + 1), configFile)
   }
+  $G.config = readConfig(configFile)
 
   if (!$G.config['hbx.dir'] && process.platform === 'darwin') {
     $G.config['hbx.dir'] = '/Applications/HBuilderX.app'
@@ -160,21 +163,6 @@ export default function (inputArgs) {
     } catch {
       $G.config['wx.dir'] = defaultPath
     }
-  }
-
-  if (cmd === 'config') {
-    if (args.argv.remain[1] && args.argv.remain[1].includes('=')) {
-      return console.log(chalk.yellow('参数不支持 = , 请使用空格间隔参数'))
-    }
-
-    $G.config[args.argv.remain[1]] = args.argv.remain[2]
-    if (args.argv.remain[2] === undefined) {
-      console.log(chalk.yellow(`已移除参数 ${args.argv.remain[1]}`))
-    } else {
-      console.log(chalk.green(`已配置参数 ${args.argv.remain[1]}: ${args.argv.remain[2]}`))
-    }
-
-    return fs.writeFileSync(path.join($G.sdkHomeDir, 'config.json'), JSON.stringify($G.config, null, 2))
   }
 
   if (cmd === 'hbx') {
@@ -363,6 +351,7 @@ export default function (inputArgs) {
   if (cmd === 'prepare') {
     return (async () => {
       if (!args.argv.remain[1] || !args.argv.remain[1].startsWith('build:app')) {
+        process.exitCode = 1
         return console.log(chalk.yellow(`命令无效，${$G.projectType} 工程仅支持 uapp prepare build:app*, 支持自定义扩展且名字必须app开头`))
       }
 
@@ -394,6 +383,7 @@ export default function (inputArgs) {
     console.log('当前工程类型为 ' + chalk.yellow($G.projectType + ', vue' + $G.manifest.vueVersion))
 
     if ($G.projectType !== 'webapp' && $G.args.release?.split('.').pop() === 'wgt') {
+      process.exitCode = 1
       return console.log('命令无效，仅支持在 webapp 工程下打包为 wgt格式')
     }
 
@@ -406,8 +396,9 @@ export default function (inputArgs) {
         console.log(chalk.yellow(`webapp 工程下忽略 --release 参数 (${$G.args.release})`))
       }
 
-      let [a, b] = args.argv.remain[1].split(':')
+      let [a, b] = (args.argv.remain[1] || '').split(':')
       if (!['build', 'dev'].includes(a) || !b) {
+        process.exitCode = 1
         return console.log('命令无效，webapp 仅支持 uapp run build:* / dev:*, 支持自定义扩展')
       }
 
@@ -415,6 +406,7 @@ export default function (inputArgs) {
     }
 
     if (!args.argv.remain[1] || !args.argv.remain[1].startsWith('build:app')) {
+      process.exitCode = 1
       return console.log(chalk.yellow(`命令无效，${$G.projectType} 工程仅支持 uapp run build:app*, 支持自定义扩展且名字必须app开头`))
     }
 
@@ -448,6 +440,7 @@ export default function (inputArgs) {
         let gradle = process.platform === 'win32' ? 'gradlew.bat' : './gradlew'
         execSync(gradle + ` ${assembleTypeMap[buildType]} -s`, { stdio: 'inherit' })
         let buildOutFile = path.join($G.appDir, 'app/build/outputs/', outFileMap[buildType])
+        checkBuildArtifact(buildOutFile)
 
         if (buildType === 'dev' && args.copy) {
           sync(buildOutFile, path.join($G.webAppDir, 'unpackage/debug/android_debug.apk'), { delete: true })
@@ -459,30 +452,37 @@ export default function (inputArgs) {
       }
 
       if ($G.projectType === 'ios') {
-        try {
-          execSync('xcodegen', { stdio: 'inherit' })
-        } catch (e) {
-          console.log('请先安装 xcodegen, 可通过 brew install xcodegen 安装, 参考 iOS 配置文档: ')
-          console.log('👉 https://gitee.com/uappkit/platform/blob/main/ios/README.md')
-          return
+        let ipaFile = path.join($G.appDir, 'out/HBuilder.ipa')
+        if (hasIOSPodConfig($G.appDir)) {
+          ipaFile = buildIOSWithPods($G.appDir)
+        } else {
+          try {
+            execSync('xcodegen', { stdio: 'inherit' })
+          } catch (e) {
+            process.exitCode = e.status || 1
+            console.log('请先安装 xcodegen, 可通过 brew install xcodegen 安装, 参考 iOS 配置文档: ')
+            console.log('👉 https://gitee.com/uappkit/platform/blob/main/ios/README.md')
+            return
+          }
+
+          const name = fs.readFileSync(path.join($G.appDir, '/project.yml'), 'utf8').match(/^name:\s*(\S+)/m)[1]
+          // gererate uapp_debug.xcarchive
+          execSync(
+            `xcodebuild -project ${name}.xcodeproj -destination "generic/platform=iOS" -scheme "HBuilder" -archivePath out/uapp_debug.xcarchive archive`,
+            { stdio: 'inherit' }
+          )
+
+          // generate ipa
+          execSync(
+            'xcodebuild -exportArchive -archivePath out/uapp_debug.xcarchive -exportPath out -exportOptionsPlist config/export.plist',
+            { stdio: 'inherit' }
+          )
         }
 
-        const name = fs.readFileSync(path.join($G.appDir, '/project.yml'), 'utf8').match(/^name:\s*(\S+)/m)[1]
-        // gererate uapp_debug.xcarchive
-        execSync(
-          `xcodebuild -project ${name}.xcodeproj -destination "generic/platform=iOS" -scheme "HBuilder" -archivePath out/uapp_debug.xcarchive archive`,
-          { stdio: 'inherit' }
-        )
-
-        // generate ipa
-        execSync(
-          'xcodebuild -exportArchive -archivePath out/uapp_debug.xcarchive -exportPath out -exportOptionsPlist config/export.plist',
-          { stdio: 'inherit' }
-        )
-
+        checkBuildArtifact(ipaFile)
         if (args.copy) {
           sync(
-            path.join($G.appDir, 'out/HBuilder.ipa'),
+            ipaFile,
             path.join($G.webAppDir, 'unpackage/debug/ios_debug.ipa'),
             { delete: true }
           )
@@ -518,7 +518,7 @@ function checkForUpdates() {
 function checkManifest() {
   if (!fs.existsSync($G.localLinkManifest)) {
     console.log('请先执行 `uapp manifest path/to/manifest.json` 指定 manifest.json 文件')
-    process.exit()
+    process.exit(1)
   }
 }
 
@@ -560,25 +560,31 @@ function loadManifest() {
   "ios.appkey": "申请并替换为 ios dcloudkey"
 },
     `)
-    process.exit()
+    process.exit(1)
   }
 
   $G.manifest.uapp.name = $G.manifest.uapp[`${$G.projectType}.name`] || $G.manifest.uapp.name || $G.manifest.name
   $G.manifest.uapp.package = $G.manifest.uapp[`${$G.projectType}.package`] || $G.manifest.uapp.package || ''
-  $G.manifest.uapp.versionName = $G.manifest.uapp[`${$G.projectType}.versionName`] || $G.manifest.versionName
-  $G.manifest.uapp.versionCode = $G.manifest.uapp[`${$G.projectType}.versionCode`] || $G.manifest.versionCode
+  $G.manifest.uapp.versionName = $G.manifest.uapp[`${$G.projectType}.versionName`] ?? $G.manifest.uapp.versionName ?? $G.manifest.versionName
+  $G.manifest.uapp.versionCode = $G.manifest.uapp[`${$G.projectType}.versionCode`] ?? $G.manifest.uapp.versionCode ?? $G.manifest.versionCode
   $G.manifest.uapp.appkey = $G.manifest.uapp[`${$G.projectType}.appkey`] || ''
 
   // 缺失的参数，默认使用模版里的
   $G.manifest = _.merge(require(path.join($G.sdkHomeDir, '/templates/manifest.json')), $G.manifest)
 }
 
+function checkBuildArtifact(file) {
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    throw new Error('未找到构建产物文件: ' + file)
+  }
+}
+
 function prepareCommand() {
   let compiledDir = getBuildOut()
-  if (!pathExistsSync(compiledDir)) {
+  if (!pathExistsSync(compiledDir) || !fs.statSync(compiledDir).isDirectory()) {
     console.log(chalk.red('找不到本地App打包资源'))
     console.log('请使用 HBuilderX => 发行(菜单) => 原生App本地打包 => 生成本地打包App资源')
-    process.exit()
+    process.exit(1)
   }
 
   let resDir = path.join($G.webAppDir, 'unpackage/res/icons')
@@ -692,23 +698,27 @@ function getIconResourceDir(resDir) {
  */
 
 function updateIOSMetaData() {
-  let baseYamlFile = path.join($G.appDir, 'config/base.yml')
-  let content = fs.readFileSync(baseYamlFile, 'utf8')
-  let versionName = normalizeVersionName($G.manifest.uapp.versionName)
+  if (hasIOSPodConfig($G.appDir)) {
+    updateIOSPodConfig($G.appDir, $G.manifest, $G.sdkHomeDir)
+  } else {
+    let baseYamlFile = path.join($G.appDir, 'config/base.yml')
+    let content = fs.readFileSync(baseYamlFile, 'utf8')
+    let versionName = normalizeVersionName($G.manifest.uapp.versionName)
 
-  content = content.replace(/(PRODUCT_BUNDLE_IDENTIFIER: )(.*)/, '$1' + $G.manifest.uapp.package)
-  content = content.replace(/(MARKETING_VERSION: )(.*)/g, '$1' + versionName)
-  content = content.replace(/(CURRENT_PROJECT_VERSION: )(.*)/g, '$1' + $G.manifest.uapp.versionCode)
-  fs.writeFileSync(baseYamlFile, content)
+    content = content.replace(/(PRODUCT_BUNDLE_IDENTIFIER: )(.*)/, '$1' + $G.manifest.uapp.package)
+    content = content.replace(/(MARKETING_VERSION: )(.*)/g, '$1' + versionName)
+    content = content.replace(/(CURRENT_PROJECT_VERSION: )(.*)/g, '$1' + $G.manifest.uapp.versionCode)
+    fs.writeFileSync(baseYamlFile, content)
 
-  replaceStoryboard(path.join($G.appDir, 'Main/Resources/LaunchScreen.storyboard'))
-  replaceStoryboard(path.join($G.appDir, 'Main/Resources/LaunchScreenAD.storyboard'))
+    replaceStoryboard(path.join($G.appDir, 'Main/Resources/LaunchScreen.storyboard'))
+    replaceStoryboard(path.join($G.appDir, 'Main/Resources/LaunchScreenAD.storyboard'))
 
-  replaceInfoPlist(path.join($G.appDir, 'Main/Resources/AppDev/Info.plist'))
-  replaceInfoPlist(path.join($G.appDir, 'Main/Resources/AppRelease/Info.plist'))
+    replaceInfoPlist(path.join($G.appDir, 'Main/Resources/AppDev/Info.plist'))
+    replaceInfoPlist(path.join($G.appDir, 'Main/Resources/AppRelease/Info.plist'))
 
-  replaceControlXml(path.join($G.appDir, 'Main/Resources/AppDev/control.xml'))
-  replaceControlXml(path.join($G.appDir, 'Main/Resources/AppRelease/control.xml'))
+    replaceControlXml(path.join($G.appDir, 'Main/Resources/AppDev/control.xml'))
+    replaceControlXml(path.join($G.appDir, 'Main/Resources/AppRelease/control.xml'))
+  }
 
   let sdkLinkDir = path.join($G.appDir, '/SDKs/SDK')
   if (!fs.existsSync(sdkLinkDir)) {
@@ -885,7 +895,7 @@ function printAndroidKeyInfo(gradle) {
 
 function printHBuilderXDirNotFound() {
   console.log('找不到 HBuilderX 安装路径')
-  console.log('配置 HBuilderX 环境命令: ' + chalk.yellow('uapp config hbx.dir [path/to/HBuilderX]'))
+  console.log('配置 HBuilderX 环境命令: ' + chalk.yellow('uapp config set hbx.dir [path/to/HBuilderX]'))
 }
 
 function resolveHBuilderXDir(options = {}) {
@@ -893,7 +903,8 @@ function resolveHBuilderXDir(options = {}) {
   let hbxDir = $G.config['hbx.dir']
   if (!hbxDir || !fs.existsSync(hbxDir)) {
     printHBuilderXDirNotFound()
-    if (exitOnMissing) process.exit()
+    process.exitCode = 1
+    if (exitOnMissing) process.exit(1)
     return ''
   }
 
@@ -918,8 +929,8 @@ function buildWebApp(buildArg) {
 
   if (!node || !fs.existsSync(node)) {
     console.log('找不到 node 位置: ' + node)
-    console.log('配置 node: ' + chalk.yellow('uapp config node [path/to/node]'))
-    process.exit()
+    console.log('配置 node: ' + chalk.yellow('uapp config set node [path/to/node]'))
+    process.exit(1)
   }
 
   let flag = buildArg.startsWith('build') ? 'build' : ''
@@ -946,7 +957,7 @@ function buildWebApp(buildArg) {
 
   if (!fs.existsSync(buildScript)) {
     console.log(chalk.yellow(`HBuilderX 需要安装插件 => uni-app (${vue}) 编译器`))
-    process.exit()
+    process.exit(1)
   }
 
   let buildOutDir = getBuildOut()
@@ -958,6 +969,7 @@ function buildWebApp(buildArg) {
 
   return new Promise((resolve, reject) => {
     let p = spawn(node, spawnArgs, spawnOpts)
+    p.on('error', reject)
     let first = false
 
     p.stdout.on('data', data => {
@@ -983,8 +995,7 @@ function buildWebApp(buildArg) {
 
     p.on('close', code => {
       if (code !== 0 || errOut.indexOf('failed with errors') > -1 || errOut.indexOf('Missing platform') > -1) {
-        process.exit(-1)
-        return reject()
+        return reject(Object.assign(new Error('Web 编译失败'), { exitCode: code || 1 }))
       }
 
       if (['build', 'app'].every(v => $G.args.argv.remain[1].includes(v)) && $G.args.release?.split('.').pop() === 'wgt') {
@@ -1064,6 +1075,7 @@ function runUniAppTest(testArg) {
   const testName = testArg.split(':')[1]
   const target = uniAppTestTargets[testName]
   if (!target) {
+    process.exitCode = 1
     console.log(`不支持测试平台 ${testName}, 当前支持的平台有: ${Object.keys(uniAppTestTargets).join(', ')}`)
     return
   }
@@ -1162,7 +1174,7 @@ function runUniAppJestTest(target, options = {}) {
 
   const p = spawn(hbx.node, cmd, { cwd: projectPath, env, stdio: 'inherit' })
   p.on('close', code => {
-    process.exit(code || 0)
+    process.exit(code ?? 1)
   })
   p.on('error', error => {
     console.log(error.message)
@@ -1179,8 +1191,8 @@ function resolveHBuilderXRuntime() {
 
   if (!node || !fs.existsSync(node)) {
     console.log('找不到 node 位置: ' + node)
-    console.log('配置 node: ' + chalk.yellow('uapp config node [path/to/node]'))
-    process.exit()
+    console.log('配置 node: ' + chalk.yellow('uapp config set node [path/to/node]'))
+    process.exit(1)
   }
 
   const versionFile = path.join(hbxDir, 'plugins/about/package.json')
@@ -1324,6 +1336,15 @@ function getUniAppTestLauncherPath(hbxDir, target) {
   return $G.config['harmony.devTools.path'] || ''
 }
 
+function runToolCli(cli, args) {
+  const result = spawnSync(cli, args, { stdio: 'inherit' })
+  if (result.error) console.error(result.error.message)
+  if (result.error || result.signal || result.status !== 0) {
+    process.exitCode = result.status || 1
+  }
+  return result
+}
+
 function runHBuilderXCli(args) {
   const hbxDir = resolveHBuilderXDir({ useInternalDir: false, exitOnMissing: false })
   if (!hbxDir) return
@@ -1343,7 +1364,7 @@ function runHBuilderXCli(args) {
   }
 
   console.log(cli)
-  return spawnSync(cli, args, { stdio: 'inherit' })
+  return runToolCli(cli, args)
 }
 
 function runWeixinCli(args) {
@@ -1355,12 +1376,13 @@ function runWeixinCli(args) {
   }
 
   if (!fs.existsSync(($G.config['wx.dir']))) {
+    process.exitCode = 1
     console.log('找不到微信安装路径')
-    return console.log('配置微信环境命令: ' + chalk.yellow('uapp config wx.dir [path/to/weixin]'))
+    return console.log('配置微信环境命令: ' + chalk.yellow('uapp config set wx.dir [path/to/weixin]'))
   }
 
   console.log(cli)
-  spawnSync(cli, args, { stdio: 'inherit' })
+  return runToolCli(cli, args)
 }
 
 function clone(url, projectName) {
