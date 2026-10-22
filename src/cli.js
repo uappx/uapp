@@ -18,6 +18,7 @@ import tiged from '@uappx/tiged'
 import chalk from 'chalk'
 import sync from './sync.js'
 import { hasIOSPodConfig, updateIOSPodConfig, buildIOSWithPods } from './ios-pods.js'
+import { printIOSSigningInfo } from './ios-signing.js'
 import { readConfig, configCommand } from './config.js'
 import stripJsonComments from './stripJsonComments.js'
 import fsExtra from 'fs-extra'
@@ -247,6 +248,18 @@ export default function (inputArgs) {
   |--------------------------------------------------------------------------
   */
 
+  // Validate info before generic project/platform guards.
+  if (cmd === 'info') {
+    const infoArgs = args.argv.original.slice(args.argv.original.indexOf(cmd) + 1)
+    if (infoArgs.length && (infoArgs.length !== 1 || infoArgs[0] !== 'jwt')) {
+      throw new Error('不支持的 info 参数。用法: uapp info；iOS 工程另支持 uapp info jwt')
+    }
+    if (infoArgs[0] === 'jwt') {
+      if ($G.projectType !== 'ios') throw new Error('uapp info jwt 仅支持 iOS 工程')
+      return printJWTToken()
+    }
+  }
+
   if ($G.projectType === 'unknown') {
     console.log('无法确定项目类型，请在项目的根目录下运行命令')
     console.log('目前支持的项目类型有: webapp, android, ios')
@@ -316,16 +329,13 @@ export default function (inputArgs) {
     return
   }
 
-  // 加载 manifest.json 数据
-  loadManifest()
-  $G.webAppDir = path.dirname(fs.realpathSync($G.localLinkManifest))
-
-  // command: uapp info, uapp info jwt, uapp info key
-  if (cmd === 'info' && (!args.argv.remain[1] || args.argv.remain[1] === 'jwt' || args.argv.remain[1] === 'key')) {
+  // command: uapp info; iOS only: uapp info jwt
+  if (cmd === 'info') {
+    loadManifest()
     printManifestInfo()
 
-    if (($G.projectType === 'ios' && !args.argv.remain[1]) || args.argv.remain[1] === 'jwt') {
-      printJWTToken().then()
+    if ($G.projectType === 'ios') {
+      printIOSSigningInfo($G.appDir)
       return
     }
 
@@ -343,9 +353,13 @@ export default function (inputArgs) {
       }
 
       printAndroidKeyInfo(gradle)
-      return
     }
+    return
   }
+
+  // 加载 manifest.json 数据
+  loadManifest()
+  $G.webAppDir = path.dirname(fs.realpathSync($G.localLinkManifest))
 
   // command: uapp prepare
   if (cmd === 'prepare') {

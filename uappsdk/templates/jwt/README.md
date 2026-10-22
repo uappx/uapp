@@ -12,6 +12,6 @@
 
 2、登录苹果开发者账号，创建并下载签名文件， 改名为jwt/key.txt。
 
-3、运行 `uapp info` 命令查看 JWT Token
+3、在 iOS 工程目录运行 `uapp info jwt` 命令查看 JWT Token
 
 👉 参考教程: http://help.jwt.code0xff.com

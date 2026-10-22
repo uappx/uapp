@@ -13,12 +13,13 @@ export function hasIOSPodConfig(appDir) {
 export function updateIOSPodConfig(appDir, manifest, sdkHomeDir) {
   const uapp = manifest.uapp || {}
   const weixin = manifest['app-plus']?.distribute?.sdkConfigs?.oauth?.weixin || {}
+
   const controlFile = [
     path.join(appDir, 'SDKs/SDK/control.xml'),
     path.join(sdkHomeDir, 'ios/SDK/control.xml')
   ].find(file => fs.existsSync(file))
   const control = controlFile ? fs.readFileSync(controlFile, 'utf8') : ''
-  const sdkVersion = control.match(/<HBuilder\b[^>]*\bversion=["']([^"']+)["']/)?.[1] || '1.0.0'
+
   const metadata = {
     bundle_id: String(uapp.package ?? ''),
     app_name: String(uapp.name ?? manifest.name ?? ''),
@@ -29,14 +30,22 @@ export function updateIOSPodConfig(appDir, manifest, sdkHomeDir) {
     wechat_appid: String(weixin.appid ?? ''),
     wechat_appsecret: String(weixin.appsecret ?? ''),
     universal_links: String(weixin.UniversalLinks ?? ''),
-    sdk_version: sdkVersion
+    sdk_version: control.match(/<HBuilder\b[^>]*\bversion=["']([^"']+)["']/)?.[1] || '1.0.0'
   }
+
   // A quoted Ruby heredoc keeps JSON strings literal, including Ruby #{...}.
-  const block = `${beginMarker}\nrequire 'json'\nUAPP_APP_CONFIG = JSON.parse(<<~'UAPP_APP_JSON').freeze\n${JSON.stringify(metadata, null, 2)}\nUAPP_APP_JSON\n${endMarker}`
+  const block = `${beginMarker}
+require 'json'
+UAPP_APP_CONFIG = JSON.parse(<<~'UAPP_APP_JSON').freeze
+${JSON.stringify(metadata, null, 2)}
+UAPP_APP_JSON
+${endMarker}`
+
   const file = path.join(appDir, configName)
   let content = fs.readFileSync(file, 'utf8')
   const begins = [...content.matchAll(/^# BEGIN UAPP_APP_CONFIG \(managed by uapp prepare\)\r?$/gm)]
   const ends = [...content.matchAll(/^# END UAPP_APP_CONFIG\r?$/gm)]
+
   if (begins.length === 0 && ends.length === 0) {
     if (/^\s*UAPP_APP_CONFIG\s*=/m.test(content)) {
       throw new Error('uniapp_config.rb 中的 UAPP_APP_CONFIG 缺少 uapp 管理标记，无法安全更新')
@@ -45,8 +54,11 @@ export function updateIOSPodConfig(appDir, manifest, sdkHomeDir) {
   } else if (begins.length !== 1 || ends.length !== 1 || ends[0].index < begins[0].index) {
     throw new Error('uniapp_config.rb 中的 UAPP_APP_CONFIG 管理标记不完整或重复')
   } else {
-    content = content.slice(0, begins[0].index) + block + content.slice(ends[0].index + ends[0][0].length)
+    content = content.slice(0, begins[0].index)
+      + block
+      + content.slice(ends[0].index + ends[0][0].length)
   }
+
   fs.writeFileSync(file, content)
 }
 
@@ -60,12 +72,15 @@ export function readIOSPodBuildConfig(appDir, { run = execFileSync } = {}) {
   if (!supplied || typeof supplied !== 'object' || Array.isArray(supplied)) {
     throw new Error('UAPP_BUILD_CONFIG 必须是 Ruby Hash')
   }
+
   let project = supplied.project
   if (!project) {
-    const projects = fs.readdirSync(appDir).filter(name => name.endsWith('.xcodeproj') && fs.statSync(path.join(appDir, name)).isDirectory())
+    const projects = fs.readdirSync(appDir).filter(name =>
+      name.endsWith('.xcodeproj') && fs.statSync(path.join(appDir, name)).isDirectory())
     if (projects.length !== 1) throw new Error('请在 uniapp_config.rb 的 UAPP_BUILD_CONFIG 中指定 project')
     project = projects[0]
   }
+
   const config = {
     project,
     workspace: supplied.workspace || project.replace(/\.xcodeproj$/, '.xcworkspace'),
@@ -75,31 +90,43 @@ export function readIOSPodBuildConfig(appDir, { run = execFileSync } = {}) {
     export_options: supplied.export_options || 'Main/Resources/export.plist',
     ipa_name: supplied.ipa_name || 'HBuilder.ipa'
   }
+
   for (const [key, value] of Object.entries(config)) {
     if (typeof value !== 'string' || !value.trim()) throw new Error(`无效的 iOS 构建配置: ${key}`)
   }
   for (const file of ['Podfile', config.project, config.export_options]) {
     if (!fs.existsSync(path.resolve(appDir, file))) throw new Error(`Pod 构建所需文件不存在: ${file}`)
   }
+
   return config
 }
 
 export function buildIOSWithPods(appDir, { run = execFileSync } = {}) {
   const config = readIOSPodBuildConfig(appDir, { run })
   const options = { cwd: appDir, stdio: 'inherit' }
+
   run('pod', ['install', '--no-repo-update'], options)
   if (!fs.existsSync(path.resolve(appDir, config.workspace))) {
     throw new Error(`pod install 后未找到 workspace: ${config.workspace}`)
   }
+
   run('xcodebuild', [
-    '-workspace', config.workspace, '-destination', 'generic/platform=iOS',
-    '-scheme', config.scheme, '-archivePath', config.archive_path, 'archive'
+    '-workspace', config.workspace,
+    '-destination', 'generic/platform=iOS',
+    '-scheme', config.scheme,
+    '-archivePath', config.archive_path,
+    'archive'
   ], options)
+
   run('xcodebuild', [
-    '-exportArchive', '-archivePath', config.archive_path,
-    '-exportPath', config.export_path, '-exportOptionsPlist', config.export_options
+    '-exportArchive',
+    '-archivePath', config.archive_path,
+    '-exportPath', config.export_path,
+    '-exportOptionsPlist', config.export_options
   ], options)
+
   const ipa = path.resolve(appDir, config.export_path, config.ipa_name)
   if (!fs.existsSync(ipa)) throw new Error(`导出成功但未找到配置的 IPA: ${ipa}`)
+
   return ipa
 }

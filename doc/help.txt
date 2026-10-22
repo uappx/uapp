@@ -45,7 +45,8 @@ uapp 通用命令🔥
 app 工程下命令:
 
     uapp manifest path/to/manifest.json  # 配置 webapp 工程里的 manifest.json 位置
-    uapp info                            # 显示APP开发中会用到的配置信息
+    uapp info                            # 显示当前工程基本信息及平台签名信息
+    uapp info jwt                        # 仅 iOS：单独生成并显示苹果登录 JWT Token
     uapp keygen                          # 生成 android 的签名文件 app.keystore
 
   - 更新打包用到的数据，包括版本信息, dcloudkey, App图标, 本地打包资源等

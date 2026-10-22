@@ -15,7 +15,7 @@ uapp让Web开发者能搞更多事情，会H5就可以无限制重构一切软�
 
 - [x] 开发微信小程序时，仅运行 `uapp run dev:mp-weixin --open`，就能生成小程序代码，并直接打开微信开发者工具加载。
 - [x] 开发APP离线基座，仅运行 `uapp run build:app`，就能生成自定义基座安装包，且自动发布到 hbx 工程下面直接使用。
-- [x] `uapp info` 可以查看包名, 签名 md5, dcloudkey, jwt 等开发中用到的各种信息。
+- [x] `uapp info` 可以查看包名, 签名 md5, iOS 发行证书公钥及 SHA-1 指纹, dcloudkey 等开发中用到的各种信息；iOS 工程可用 `uapp info jwt` 单独生成 JWT。
 
 多一个平台，就多了一个流量渠道，多一个平台，就多个用户选择的理由，而做这些事，仅需维护一套代码。哪怕只开发一个平台，同样花时间写代码，为什么不选择复用价值更高的方法呢。
 
@@ -215,6 +215,16 @@ iOS 的工程化一直都不太方便，通常都是用的 CocoaPods，但不适
 }
 ```
 
+在 iOS 或 Android 工程中，`uapp info` 显示当前工程的基本信息；iOS 额外显示发行证书公钥（RSA 十六进制模数）和 SHA-1 指纹，Android 额外显示签名信息。默认不生成或显示 JWT Token。
+
+仅 iOS 工程支持 `uapp info jwt`，用于单独生成并显示苹果登录 JWT Token，不重复输出基本信息或证书信息。`info` 不接受其他子命令或多余参数。
+
+Team ID 和 Bundle ID 从当前 Xcode 工程的发布 target 的 Release 构建配置读取。CocoaPods 工程使用 `uniapp_config.rb` 中的 `UAPP_BUILD_CONFIG.project` 和 `release_target` 选择工程及 target；未指定时自动识别唯一工程及唯一 App target（或 `uapp-release`）。引用 xcconfig 或变量的签名设置通过 `xcodebuild -showBuildSettings` 解析。
+
+证书以本地归档中同 Team ID、Bundle ID 的**最新成功上传 App Store 记录**为准，再从 App Store 描述文件或钥匙串提取 SHA-1 完全匹配的发行证书。支持 Xcode 默认 Archives 目录、工程 `out` 目录和 `UAPP_BUILD_CONFIG.archive_path`，也支持仅保存在描述文件中的云端托管发行证书。找不到上传记录或对应证书时显示原因，不用开发证书或其他发行证书代替。成功上传记录不代表 App Store 审核或上架状态。
+
+尚未上传时，命令会提示操作步骤：在 Xcode 选择发布 scheme 和真机或通用 iOS 设备目标，确认签名团队及 Bundle ID，执行 `Product > Archive`；随后在 Organizer 选中归档，通过 `Distribute App` 的 App Store Connect 上传流程完成 Upload。确认上传成功后，在 iOS 工程目录重新运行 `uapp info`，无需等待审核或上架。若已在其他电脑上传，可直接在那台电脑运行命令，或恢复包含上传记录的归档以及对应描述文件或发行证书。
+
 其他一些命令参考:
 
 ```bash
@@ -327,7 +337,7 @@ custom.command 参数内，可以使用 `${SRC}, ${SRC}` 为当前 manifest.json
 
 2、登录苹果开发者账号，创建并下载签名文件， 改名为jwt/key.txt。
 
-3、运行 `uapp info` 命令查看 JWT Token
+3、运行 `uapp info jwt` 命令查看 JWT Token
 
 👉 参考教程: <http://help.jwt.code0xff.com>
 
