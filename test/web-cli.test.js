@@ -130,3 +130,15 @@ for (const missing of ['installation', 'node', 'compiler']) {
     assert.deepEqual(f.calls(), [])
   })
 }
+
+test('WGT excludes native plugin inputs but preserves plugin static files', t => {
+  const f = fixture(t)
+  compiler(f, emitResources + `
+for (const name of ['uni_modules/demo/utssdk/app-android/src/index.kt', 'uni_modules/demo/utssdk/app-ios/src/index.swift', 'uni_modules/flat/app-ios/config.json', 'uni_modules/demo/static/icon.png']) {
+  const file = path.join(process.env.UNI_OUTPUT_DIR, name);
+  fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, 'content');
+}`)
+  assertSuccess(f.run(['run', 'build:app', '-r', 'app.wgt']))
+  const entries = readStoredZip(path.join(f.app, 'unpackage/release/app.wgt'))
+  assert.deepEqual(Object.keys(entries).sort(), ['manifest.json', 'nested/中文 file.js', 'uni_modules/demo/static/icon.png'])
+})

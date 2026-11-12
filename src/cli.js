@@ -17,6 +17,7 @@ import { execSync, spawnSync, spawn } from 'child_process'
 import tiged from '@uappx/tiged'
 import chalk from 'chalk'
 import sync from './sync.js'
+import { isNativePluginPath, removeEmptyModuleDirectories, syncNativePlugins } from './app-resources.js'
 import { hasIOSPodConfig, updateIOSPodConfig, buildIOSWithPods } from './ios-pods.js'
 import { printIOSSigningInfo } from './ios-signing.js'
 import { readConfig, configCommand } from './config.js'
@@ -625,8 +626,12 @@ function prepareCommand() {
     $G.projectType === 'ios' ? 'Main/Pandora/apps' : 'app/src/main/assets/apps'
   )
 
+  syncNativePlugins(compiledDir, $G.appDir, $G.projectType)
   emptyDirSync(embedAppsDir)
-  sync(compiledDir, path.join(embedAppsDir, $G.manifest.appid, 'www'))
+  fsExtra.copySync(compiledDir, path.join(embedAppsDir, $G.manifest.appid, 'www'), {
+    filter: source => !isNativePluginPath(path.relative(compiledDir, source))
+  })
+  removeEmptyModuleDirectories(path.join(embedAppsDir, $G.manifest.appid, 'www/uni_modules'))
   console.log(chalk.green('APP打包所需资源已更新'))
 }
 
@@ -1057,6 +1062,7 @@ function zipDirectory(sourceDir, outPath) {
       for (const file of files) {
         const fullPath = path.join(dir, file)
         const relativePath = path.relative(base, fullPath)
+        if (isNativePluginPath(relativePath)) continue
         const stat = fs.statSync(fullPath)
 
         if (stat.isDirectory()) {
