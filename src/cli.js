@@ -71,7 +71,8 @@ let $G = {
 
 export default function (inputArgs) {
   checkForUpdates()
-  let args = $G.args = nopt(knownOpts, shortHands, inputArgs)
+  const toolCommand = ['hbx', 'wx'].includes(inputArgs[2])
+  let args = $G.args = nopt(knownOpts, shortHands, toolCommand ? inputArgs.slice(0, 3) : inputArgs)
 
   if (args.version) {
     console.log('uapp 当前版本: ' + pkg.version)
@@ -168,11 +169,11 @@ export default function (inputArgs) {
   }
 
   if (cmd === 'hbx') {
-    return runHBuilderXCli(args.argv.original.slice(1))
+    return runHBuilderXCli(inputArgs.slice(3))
   }
 
   if (cmd === 'wx') {
-    return runWeixinCli(args.argv.original.slice(1))
+    return runWeixinCli(inputArgs.slice(3))
   }
 
   // 如果当面目录不存在 manifest.json，尝试使用 ../src/manifest.json

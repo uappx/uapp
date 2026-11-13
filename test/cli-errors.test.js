@@ -50,3 +50,15 @@ for (const command of ['hbx', 'wx']) {
     })
   }
 }
+
+for (const command of ['hbx', 'wx']) {
+  test(`${command} forwards help, version and subcommand options unchanged`, t => {
+    const f = fixture(t)
+    const install = path.join(f.root, 'Tool App')
+    f.config({ [command + '.dir']: install })
+    executable(path.join(install, process.platform === 'darwin' ? 'Contents/MacOS/cli' : 'cli'), f.record)
+    const cases = [['--help'], ['-h'], ['--version'], ['-v'], ['open', '--help'], ['open', '--release', 'custom', '--', '-h']]
+    for (const args of cases) assertSuccess(f.run([command, ...args]))
+    assert.deepEqual(f.calls().map(call => call.args), cases)
+  })
+}
