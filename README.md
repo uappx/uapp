@@ -186,9 +186,11 @@ iOS 的工程化一直都不太方便，通常都是用的 CocoaPods，但不适
 
 ![ios build](https://uappx.oss-cn-hangzhou.aliyuncs.com/repo/ios.gif)
 
-### 3. 离线工程下常见命令
+## 四、离线工程命令
 
 > 注意：uapp 从 3.0 开始，放弃了 run build / run build:dev，和 uniapp 一致，方便自定义扩展。
+
+### 自定义命令
 
 命令格式为 `uapp run build:app*`，vue2 工程用 `uapp run build:app-plus`。必须是 app 开头, 非 app 类型，如 H5 没有这个限制。
 
@@ -215,17 +217,7 @@ iOS 的工程化一直都不太方便，通常都是用的 CocoaPods，但不适
 }
 ```
 
-在 iOS 或 Android 工程中，`uapp info` 显示当前工程的基本信息；iOS 额外显示发行证书公钥（RSA 十六进制模数）和 SHA-1 指纹，Android 额外显示签名信息。默认不生成或显示 JWT Token。
-
-仅 iOS 工程支持 `uapp info jwt`，用于单独生成并显示苹果登录 JWT Token，不重复输出基本信息或证书信息。`info` 不接受其他子命令或多余参数。
-
-Team ID 和 Bundle ID 从当前 Xcode 工程的发布 target 的 Release 构建配置读取。CocoaPods 工程使用 `uniapp_config.rb` 中的 `UAPP_BUILD_CONFIG.project` 和 `release_target` 选择工程及 target；未指定时自动识别唯一工程及唯一 App target（或 `uapp-release`）。引用 xcconfig 或变量的签名设置通过 `xcodebuild -showBuildSettings` 解析。
-
-证书以本地归档中同 Team ID、Bundle ID 的**最新成功上传 App Store 记录**为准，再从 App Store 描述文件或钥匙串提取 SHA-1 完全匹配的发行证书。支持 Xcode 默认 Archives 目录、工程 `out` 目录和 `UAPP_BUILD_CONFIG.archive_path`，也支持仅保存在描述文件中的云端托管发行证书。找不到上传记录或对应证书时显示原因，不用开发证书或其他发行证书代替。成功上传记录不代表 App Store 审核或上架状态。
-
-尚未上传时，命令会提示操作步骤：在 Xcode 选择发布 scheme 和真机或通用 iOS 设备目标，确认签名团队及 Bundle ID，执行 `Product > Archive`；随后在 Organizer 选中归档，通过 `Distribute App` 的 App Store Connect 上传流程完成 Upload。确认上传成功后，在 iOS 工程目录重新运行 `uapp info`，无需等待审核或上架。若已在其他电脑上传，可直接在那台电脑运行命令，或恢复包含上传记录的归档以及对应描述文件或发行证书。
-
-其他一些命令参考:
+### 常用命令
 
 ```bash
 # 读取 manifest 中的配置，并更新基本信息
@@ -249,6 +241,14 @@ uapp run build:app-plus
 # 运行自定义打包发布流程，配置见 manifest.json => custom.command
 uapp run custom
 ```
+
+### `uapp info`
+
+`uapp info` 在 iOS 或 Android 工程显示基本信息；iOS 额外显示发行证书 RSA 公钥和 SHA-1，Android 显示签名信息。仅 iOS 支持 `uapp info jwt`，用于单独生成苹果登录 JWT；`info` 不接受其他子命令或多余参数。
+
+iOS 的 Team ID 和 Bundle ID 读取自 Xcode Release target，CocoaPods 工程可通过 `uniapp_config.rb` 指定 project 和 release target。证书以同 Team ID、Bundle ID 的最新成功 App Store 上传记录为准，从本地归档、云端描述文件或钥匙串中寻找 SHA-1 匹配的发行证书；找不到时显示原因，不使用其他证书替代。
+
+尚未上传时，请在 Xcode 完成 Archive，并通过 Organizer 上传到 App Store Connect，然后重新运行 `uapp info`。上传记录只表示提交成功，不代表审核或上架状态。
 
 ### `--release` 参数说明
 
@@ -279,7 +279,7 @@ uapp run custom
 
 自 `3.2.4` 起，`--out` 已移除，最终产物位置统一通过 `--release` 指定。
 
-## 四、manifest.json 相关配置
+## 五、manifest.json 相关配置
 
 > 注意: `uapp.* 参数` 是 uapp 根据需要扩展出来的, 非 dcloud 官方标准.
 
@@ -338,7 +338,7 @@ custom.command 参数内，可以使用 `${SRC}, ${SRC}` 为当前 manifest.json
 | versionCode    | App版本Code，同上可以加前缀区分不同平台。如 ios.versionCode                                              |
 | custom.command | (选填) uapp run custom 执行的自定义命令。比如一条命令里做很多事: `uapp run build:app && node publish_apk.js` |
 
-## 五、其他参考
+## 六、其他参考
 
 ### 生成用户注册协议，隐私协议
 
@@ -378,7 +378,7 @@ custom.command 参数内，可以使用 `${SRC}, ${SRC}` 为当前 manifest.json
 
 <https://uniapp.dcloud.io/matter.html>
 
-## 六、Win / Mac / Linux 等桌面应用开发
+## 七、Win / Mac / Linux 等桌面应用开发
 
 桌面应用可以将 uniapp 编译成 H5，再集成到 electron 或 tauri 中。当需要扩展系统能力时，相关方法如下：
 
