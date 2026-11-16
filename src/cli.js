@@ -399,8 +399,8 @@ export default function (inputArgs) {
   if (cmd === 'run') {
     console.log('当前工程类型为 ' + chalk.yellow($G.projectType + ', vue' + $G.manifest.vueVersion))
 
-    if (args.out !== undefined || args.output !== undefined || args.argv.original.includes('-o')) {
-      throw new Error('--out/--output 已移除，请直接使用 --release <格式或输出文件>')
+    if (args.out !== undefined || args.argv.original.includes('-o')) {
+      throw new Error('--out 已移除，请直接使用 --release <格式或输出文件>')
     }
 
     if (args.release !== undefined) {

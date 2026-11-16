@@ -254,21 +254,16 @@ uapp run custom
 
 `--release`（短参数 `-r`）必须指定且只能指定一个参数。`apk`、`aab`、`wgt` 生成默认产物，其他值必须是带 `.apk`、`.aab` 或 `.wgt` 扩展名的路径。
 
-| 工程类型 | 支持的发布格式 |
-|---|---|
-| Webapp | 仅 `wgt` |
-| Android | 仅 `apk`、`aab` |
-| iOS | 不支持 `--release` |
-
-| 参数 | 默认产物 |
-|---|---|
-| `apk` | `<android 工程>/app/build/outputs/apk/release/app-release.apk` |
-| `aab` | `<android 工程>/app/build/outputs/bundle/release/app-release.aab` |
-| `wgt` | `unpackage/release/{appid}.wgt` |
+| 工程类型 | 支持参数 | 默认产物 |
+|---|---|---|
+| Android | `apk` | `<android 工程>/app/build/outputs/apk/release/app-release.apk` |
+| Android | `aab` | `<android 工程>/app/build/outputs/bundle/release/app-release.aab` |
+| Webapp | `wgt` | `unpackage/release/{appid}.wgt` |
+| iOS | - | 不支持 `--release` |
 
 自定义路径根据扩展名识别格式，扩展名大小写不敏感。绝对路径直接使用；相对路径以命令执行目录为基准，并自动创建父目录。`demo.apk` 和 `./demo.apk` 都输出到当前目录。
 
-参数约束：
+参数示例：
 
 ```text
 --release apk                 ✅ 默认 APK
@@ -282,7 +277,7 @@ uapp run custom
 --release demo                ❌ 缺少扩展名
 ```
 
-自 `3.2.4` 起，`--out` 和 `--output` 已移除，最终产物位置统一通过 `--release` 指定。
+自 `3.2.4` 起，`--out` 已移除，最终产物位置统一通过 `--release` 指定。
 
 ## 四、manifest.json 相关配置
 
@@ -452,9 +447,3 @@ npm test
 ## License
 
 The Apache License 2. Please see [License File](LICENSE.md) for more information.
-
-## 联系作者
-
-如果你在使用 uapp 中，遇到问题，或有改进建议，欢迎联系
-
-+作者vx: 28451307
