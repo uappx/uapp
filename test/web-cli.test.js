@@ -55,13 +55,13 @@ for (const vueVersion of [2, 3]) {
   }
 }
 
-test('Web build --out and -r package the actual output as a WGT without an enclosing directory', t => {
+test('Web release packages the default output at a custom WGT path without an enclosing directory', t => {
   const f = fixture(t)
   compiler(f, emitResources)
-  const out = path.join(f.root, 'custom output')
-  assertSuccess(f.run(['run', 'build:app', '--out', out, '-r', 'custom.wgt']))
-  assert.equal(f.calls()[0].env.UNI_OUTPUT_DIR, out)
-  assert.deepEqual(readStoredZip(path.join(f.app, 'unpackage/release/custom.wgt')), {
+  const out = path.join(f.app, 'custom output/custom.wgt')
+  assertSuccess(f.run(['run', 'build:app', '-r', 'custom output/custom.wgt']))
+  assert.equal(f.calls()[0].env.UNI_OUTPUT_DIR, path.join(f.app, 'unpackage/resources/__UNI__TEST/www'))
+  assert.deepEqual(readStoredZip(out), {
     'manifest.json': '{"appid":"__UNI__TEST"}',
     'nested/中文 file.js': 'app content'
   })
@@ -76,9 +76,9 @@ for (const [name, source] of [
   test(`Web ${name} fails and preserves a previous WGT`, t => {
     const f = fixture(t)
     compiler(f, source)
-    const previous = path.join(f.app, 'unpackage/release/app.wgt')
+    const previous = path.join(f.app, 'app.wgt')
     write(previous, 'previous archive')
-    const result = f.run(['run', 'build:app', '-r', 'app.wgt'])
+    const result = f.run(['run', 'build:app', '-r', './app.wgt'])
     assertFailure(result)
     assert.doesNotMatch(result.stdout, /打包成功/)
     assert.equal(fs.readFileSync(previous, 'utf8'), 'previous archive')
@@ -138,7 +138,7 @@ for (const name of ['uni_modules/demo/utssdk/app-android/src/index.kt', 'uni_mod
   const file = path.join(process.env.UNI_OUTPUT_DIR, name);
   fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, 'content');
 }`)
-  assertSuccess(f.run(['run', 'build:app', '-r', 'app.wgt']))
-  const entries = readStoredZip(path.join(f.app, 'unpackage/release/app.wgt'))
+  assertSuccess(f.run(['run', 'build:app', '-r', 'wgt']))
+  const entries = readStoredZip(path.join(f.app, 'unpackage/release/__UNI__TEST.wgt'))
   assert.deepEqual(Object.keys(entries).sort(), ['manifest.json', 'nested/中文 file.js', 'uni_modules/demo/static/icon.png'])
 })

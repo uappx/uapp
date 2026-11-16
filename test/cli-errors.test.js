@@ -14,10 +14,15 @@ for (const args of [['run'], ['run', 'build:'], ['run', 'invalid:h5'], ['run', '
   })
 }
 
-for (const args of [['run'], ['run', 'build:h5'], ['prepare', 'dev:app'], ['run', 'build:app', '-r', 'app.wgt']]) {
+for (const [args, message] of [
+  [['run'], /命令无效/],
+  [['run', 'build:h5'], /命令无效/],
+  [['prepare', 'dev:app'], /命令无效/],
+  [['run', 'build:app', '-r', 'app.wgt'], /仅支持 apk、aab/]
+]) {
   test(`Android rejects ${args.join(' ')} before starting a build`, t => {
     const f = fixture(t, 'android')
-    assertFailure(f.run(args), /命令无效/)
+    assertFailure(f.run(args), message)
     assert.deepEqual(f.calls(), [])
   })
 }

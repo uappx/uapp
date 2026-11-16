@@ -14,14 +14,24 @@ for (const [release, task] of [[null, 'assembleDebug'], ['apk', 'assembleRelease
   test(`Android ${release || 'debug'} builds the expected artifact and only debug publishes a base`, t => {
     const f = fixture(t, 'android')
     const destination = path.join(f.app, 'unpackage/debug/android_debug.apk')
+    const releaseFile = path.join(f.app, 'app/build/outputs', outputs[task])
     write(destination, 'previous base')
     gradle(f, `const file = path.join('app/build/outputs', ${JSON.stringify(outputs)}[process.argv[2]]); fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, 'new artifact');`)
     assertSuccess(f.run(['run', 'build:app', '--no-prepare', ...(release ? ['-r', release] : [])]))
     assert.deepEqual(f.calls().map(call => call.args), [[task, '-s']])
     assert.equal(fs.readFileSync(path.join(f.app, 'app/build/outputs', outputs[task]), 'utf8'), 'new artifact')
     assert.equal(fs.readFileSync(destination, 'utf8'), release ? 'previous base' : 'new artifact')
+    if (release) assert.equal(fs.readFileSync(releaseFile, 'utf8'), 'new artifact')
   })
 }
+
+test('Android release writes a custom path and infers its format from the extension', t => {
+  const f = fixture(t, 'android')
+  const releaseFile = path.join(f.root, 'dist/release/demo.APK')
+  gradle(f, `const file = 'app/build/outputs/${outputs.assembleRelease}'; fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, 'new artifact');`)
+  assertSuccess(f.run(['run', 'build:app', '--no-prepare', '--release', '../dist/release/demo.APK']))
+  assert.equal(fs.readFileSync(releaseFile, 'utf8'), 'new artifact')
+})
 
 test('Android --no-copy preserves the installed debug base', t => {
   const f = fixture(t, 'android')

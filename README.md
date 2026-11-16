@@ -240,21 +240,49 @@ uapp prepare build:app
 # 编译APP安装包, 并发布自定义基座到 HBuilderX 下
 uapp run build:app
 
-# 打包为 uapp.wgt, 名字可改
-uapp run build:app -r uapp.wgt
+# 编译 Release 产物，规则见下文
+uapp run build:app --release apk
 
 # vue2 要使用 app-plus，与 uniapp 一致
 uapp run build:app-plus
 
-# 编译 android apk 格式
-uapp run build:app -r apk
-
-# 编译 android aab 格式 (发布到 Google Play)
-uapp run build:app -r aab
-
 # 运行自定义打包发布流程，配置见 manifest.json => custom.command
 uapp run custom
 ```
+
+### `--release` 参数说明
+
+`--release`（短参数 `-r`）必须指定且只能指定一个参数。`apk`、`aab`、`wgt` 生成默认产物，其他值必须是带 `.apk`、`.aab` 或 `.wgt` 扩展名的路径。
+
+| 工程类型 | 支持的发布格式 |
+|---|---|
+| Webapp | 仅 `wgt` |
+| Android | 仅 `apk`、`aab` |
+| iOS | 不支持 `--release` |
+
+| 参数 | 默认产物 |
+|---|---|
+| `apk` | `<android 工程>/app/build/outputs/apk/release/app-release.apk` |
+| `aab` | `<android 工程>/app/build/outputs/bundle/release/app-release.aab` |
+| `wgt` | `unpackage/release/{appid}.wgt` |
+
+自定义路径根据扩展名识别格式，扩展名大小写不敏感。绝对路径直接使用；相对路径以命令执行目录为基准，并自动创建父目录。`demo.apk` 和 `./demo.apk` 都输出到当前目录。
+
+参数约束：
+
+```text
+--release apk                 ✅ 默认 APK
+--release aab                 ✅ 默认 AAB
+--release wgt                 ✅ 默认 WGT
+--release demo.apk            ✅ 当前目录
+--release dist/demo.apk       ✅ 自定义路径
+--release                     ❌ 缺少参数
+--release apk dist/demo.apk   ❌ 参数过多
+--release demo.ipa            ❌ 不支持的格式
+--release demo                ❌ 缺少扩展名
+```
+
+自 `3.2.4` 起，`--out` 和 `--output` 已移除，最终产物位置统一通过 `--release` 指定。
 
 ## 四、manifest.json 相关配置
 

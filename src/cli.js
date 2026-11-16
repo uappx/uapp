@@ -47,16 +47,16 @@ const knownOpts = {
   open: Boolean,
   webapp: Boolean,
   prepare: Boolean,
-  out: path,
   release: String
 }
 
 const shortHands = {
   r: '--release',
-  o: '--out',
   v: '--version',
   h: '--help'
 }
+
+const releaseFormats = new Set(['apk', 'aab', 'wgt'])
 
 let $G = {
   args: {},
@@ -66,7 +66,8 @@ let $G = {
   manifest: {},
   webAppDir: '',
   projectType: 'unknown',
-  config: {}
+  config: {},
+  release: null
 }
 
 export default function (inputArgs) {
@@ -398,9 +399,14 @@ export default function (inputArgs) {
   if (cmd === 'run') {
     console.log('当前工程类型为 ' + chalk.yellow($G.projectType + ', vue' + $G.manifest.vueVersion))
 
-    if ($G.projectType !== 'webapp' && $G.args.release?.split('.').pop() === 'wgt') {
-      process.exitCode = 1
-      return console.log('命令无效，仅支持在 webapp 工程下打包为 wgt格式')
+    if (args.out !== undefined || args.output !== undefined || args.argv.original.includes('-o')) {
+      throw new Error('--out/--output 已移除，请直接使用 --release <格式或输出文件>')
+    }
+
+    if (args.release !== undefined) {
+      if (args.argv.remain.length > 2) throw new Error('--release 仅接受一个参数')
+      $G.release = resolveRelease(args.release)
+      if (!args.argv.remain[1]?.startsWith('build:app')) throw new Error('--release 仅支持 build:app')
     }
 
     if (args.argv.remain[1]?.startsWith('test:')) {
@@ -408,14 +414,13 @@ export default function (inputArgs) {
     }
 
     if ($G.projectType === 'webapp') {
-      if ($G.args.release && $G.args.release.split('.').pop() !== 'wgt') {
-        console.log(chalk.yellow(`webapp 工程下忽略 --release 参数 (${$G.args.release})`))
-      }
-
       let [a, b] = (args.argv.remain[1] || '').split(':')
       if (!['build', 'dev'].includes(a) || !b) {
         process.exitCode = 1
         return console.log('命令无效，webapp 仅支持 uapp run build:* / dev:*, 支持自定义扩展')
+      }
+      if ($G.release && $G.release.format !== 'wgt') {
+        throw new Error('webapp 工程 --release 仅支持 wgt')
       }
 
       return buildWebApp(args.argv.remain[1])
@@ -424,6 +429,11 @@ export default function (inputArgs) {
     if (!args.argv.remain[1] || !args.argv.remain[1].startsWith('build:app')) {
       process.exitCode = 1
       return console.log(chalk.yellow(`命令无效，${$G.projectType} 工程仅支持 uapp run build:app*, 支持自定义扩展且名字必须app开头`))
+    }
+
+    if ($G.release) {
+      if ($G.projectType === 'ios') throw new Error('iOS 工程不支持 --release')
+      if (!['apk', 'aab'].includes($G.release.format)) throw new Error('Android 工程 --release 仅支持 apk、aab')
     }
 
     return (async () => {
@@ -436,10 +446,7 @@ export default function (inputArgs) {
       }
 
       if ($G.projectType === 'android') {
-        let buildType = 'dev'
-        if (['apk', 'aab'].includes(args.release)) {
-          buildType = args.release
-        }
+        let buildType = $G.release?.format || 'dev'
 
         let assembleTypeMap = {
           'dev': 'assembleDebug',
@@ -458,7 +465,11 @@ export default function (inputArgs) {
         let buildOutFile = path.join($G.appDir, 'app/build/outputs/', outFileMap[buildType])
         checkBuildArtifact(buildOutFile)
 
-        if (buildType === 'dev' && args.copy) {
+        if ($G.release) {
+          fs.mkdirSync(path.dirname($G.release.file), { recursive: true })
+          if (path.resolve(buildOutFile) !== path.resolve($G.release.file)) fs.copyFileSync(buildOutFile, $G.release.file)
+          buildOutFile = $G.release.file
+        } else if (args.copy) {
           sync(buildOutFile, path.join($G.webAppDir, 'unpackage/debug/android_debug.apk'), { delete: true })
         }
 
@@ -593,6 +604,32 @@ function checkBuildArtifact(file) {
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
     throw new Error('未找到构建产物文件: ' + file)
   }
+}
+
+function resolveRelease(value) {
+  if (!value) throw new Error('--release 必须指定发布格式或输出文件，支持 apk、aab、wgt')
+
+  const keyword = value.toLowerCase()
+  if (releaseFormats.has(keyword)) {
+    return { format: keyword, file: defaultReleaseFile(keyword) }
+  }
+
+  const extension = path.extname(value)
+  if (!extension) throw new Error('发布文件必须包含扩展名，仅支持 .apk、.aab、.wgt')
+
+  const format = extension.slice(1).toLowerCase()
+  if (!releaseFormats.has(format)) throw new Error(`不支持的发布格式 ${extension}，仅支持 apk、aab、wgt`)
+
+  return { format, file: path.resolve(value) }
+}
+
+function defaultReleaseFile(format) {
+  if (format === 'wgt') {
+    return path.join($G.webAppDir, 'unpackage/release', `${$G.manifest.appid}.wgt`)
+  }
+
+  const relativeFile = format === 'apk' ? 'apk/release/app-release.apk' : 'bundle/release/app-release.aab'
+  return path.join($G.appDir, 'app/build/outputs', relativeFile)
 }
 
 function prepareCommand() {
@@ -1018,10 +1055,9 @@ function buildWebApp(buildArg) {
         return reject(Object.assign(new Error('Web 编译失败'), { exitCode: code || 1 }))
       }
 
-      if (['build', 'app'].every(v => $G.args.argv.remain[1].includes(v)) && $G.args.release?.split('.').pop() === 'wgt') {
-        let releaseDir = path.join($G.webAppDir, 'unpackage/release')
-        fs.mkdirSync(releaseDir, { recursive: true })
-        let wgtFile = path.join(releaseDir, path.basename($G.args.release))
+      if ($G.release?.format === 'wgt') {
+        let wgtFile = $G.release.file
+        fs.mkdirSync(path.dirname(wgtFile), { recursive: true })
         zipDirectory(buildOutDir, wgtFile).then(() => {
           console.log('\n打包成功, wgt 文件路径: ')
           console.log(wgtFile)
@@ -1035,10 +1071,6 @@ function buildWebApp(buildArg) {
 }
 
 function getBuildOut() {
-  if ($G.args.out) {
-    return $G.args.out
-  }
-
   let buildArg = $G.args.argv.remain[1]
   let isDev = buildArg.startsWith('dev:')
   let relativeDir = ''

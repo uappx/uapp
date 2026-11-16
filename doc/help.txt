@@ -12,7 +12,9 @@ uapp 通用命令🔥
   - webapp 工程下编译命令
     uapp run dev:h5
     uapp run build:mp-weixin --open # 参数 open 表示使用微信开发者工具打开
-    uapp run build:app -r uapp.wgt  # 打包为 uapp.wgt
+    uapp run build:app --release wgt              # 打包到默认位置
+    uapp run build:app --release ./uapp.wgt       # 输出到当前目录
+    uapp run build:app --release dist/uapp.wgt    # 输出到指定位置
 
   - 使用 HBuilderX 内置 Node/Jest 自动化测试
     uapp run test:web-chrome
@@ -24,9 +26,13 @@ uapp 通用命令🔥
 
   - app 工程下命令
     uapp run build:app                # 编译并发布自定义基座到 HBuilderX 下
-    uapp run build:app --release apk  # 编译 release 发布包
-    uapp run build:app -r aab         # android 下打包为 aab 的格式
+    uapp run build:app --release apk  # 编译 APK 到默认位置
+    uapp run build:app --release aab  # 编译 AAB 到默认位置
+    uapp run build:app --release demo.apk
+    uapp run build:app --release dist/demo.apk
     uapp run build:app-plus -r apk    # 注意：vue2 要用 :app-plus
+
+    --release 仅接受一个参数，支持 apk、aab、wgt 或带 .apk/.aab/.wgt 扩展名的路径
 
   - 配置 HBuilderX, node 和 微信安装环境
     uapp config set hbx.dir "C:\Program Files (x86)\HBuilderX"
